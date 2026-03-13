@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import createContextHook from "@nkzw/create-context-hook";
@@ -6,7 +6,7 @@ import { Project } from "@/types";
 
 const STORAGE_KEY = "renovation_projects_meta";
 const IMAGE_KEY_PREFIX = "renovation_img_";
-const MAX_IMAGE_SIZE = 500_000;
+const MAX_IMAGE_SIZE = 2_000_000;
 
 interface ProjectMeta extends Omit<Project, 'originalPhoto' | 'generatedPhoto'> {
   originalPhotoKey: string;
@@ -19,8 +19,8 @@ function isBase64DataUri(data: string): boolean {
 
 function compressBase64(data: string): string {
   if (data.length <= MAX_IMAGE_SIZE) return data;
-  console.log(`Image too large (${(data.length / 1024).toFixed(0)}KB), skipping storage`);
-  return '';
+  console.log(`Image large (${(data.length / 1024).toFixed(0)}KB), truncating for storage`);
+  return data.substring(0, MAX_IMAGE_SIZE);
 }
 
 async function clearOldImages(keepKeys: string[]): Promise<void> {
@@ -45,8 +45,8 @@ async function saveImage(key: string, data: string): Promise<boolean> {
   try {
     await AsyncStorage.setItem(IMAGE_KEY_PREFIX + key, compressed);
     return true;
-  } catch (error) {
-    console.warn("Storage quota hit for image:", key, "- keeping in memory only");
+  } catch (_error) {
+    console.warn("Storage quota hit for image:", key, "- keeping in memory only", _error);
     return false;
   }
 }
@@ -70,7 +70,7 @@ async function removeImage(key: string): Promise<void> {
 }
 
 function projectToMeta(project: Project): ProjectMeta {
-  const { originalPhoto, generatedPhoto, ...rest } = project;
+  const { originalPhoto: _origPhoto, generatedPhoto, ...rest } = project;
   return {
     ...rest,
     originalPhotoKey: `orig_${project.id}`,
@@ -89,7 +89,7 @@ async function loadProjects(): Promise<Project[]> {
           const generatedPhoto = meta.generatedPhotoKey
             ? await loadImage(meta.generatedPhotoKey)
             : undefined;
-          const { originalPhotoKey, generatedPhotoKey, ...rest } = meta;
+          const { originalPhotoKey: _opk, generatedPhotoKey: _gpk, ...rest } = meta;
           return { ...rest, originalPhoto, generatedPhoto } as Project;
         })
       );
@@ -139,16 +139,16 @@ export const [ProjectsProvider, useProjects] = createContextHook(() => {
 
   const { mutate: saveMutate } = useMutation({
     mutationFn: saveProjects,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["projects"] });
+    onSuccess: (savedProjects) => {
+      queryClient.setQueryData(["projects"], savedProjects);
     },
   });
 
   useEffect(() => {
-    if (projectsQuery.data) {
+    if (projectsQuery.data && projects.length === 0) {
       setProjects(projectsQuery.data);
     }
-  }, [projectsQuery.data]);
+  }, [projectsQuery.data, projects.length]);
 
   const addProject = useCallback(
     (project: Project) => {
@@ -174,8 +174,8 @@ export const [ProjectsProvider, useProjects] = createContextHook(() => {
 
   const deleteProject = useCallback(
     (id: string) => {
-      removeImage(`orig_${id}`);
-      removeImage(`gen_${id}`);
+      void removeImage(`orig_${id}`);
+      void removeImage(`gen_${id}`);
       const updated = projects.filter((p) => p.id !== id);
       setProjects(updated);
       saveMutate(updated);
@@ -189,7 +189,7 @@ export const [ProjectsProvider, useProjects] = createContextHook(() => {
     [projects]
   );
 
-  return {
+  return useMemo(() => ({
     projects,
     isLoading: projectsQuery.isLoading,
     addProject,
@@ -198,5 +198,5 @@ export const [ProjectsProvider, useProjects] = createContextHook(() => {
     getProject,
     completedProjects: projects.filter((p) => p.status === "completed"),
     recentProjects: projects.slice(0, 5),
-  };
+  }), [projects, projectsQuery.isLoading, addProject, updateProject, deleteProject, getProject]);
 });

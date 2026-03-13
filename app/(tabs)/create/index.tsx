@@ -67,7 +67,7 @@ export default function CreateScreen() {
   const handleStyleSelect = useCallback((id: string) => {
     if (!canAccessStyle(id)) {
       if (Platform.OS !== "web") {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       }
       Alert.alert(
         "专业版风格",
@@ -81,7 +81,7 @@ export default function CreateScreen() {
     }
     setSelectedStyleId(id);
     if (Platform.OS !== "web") {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
   }, [canAccessStyle, router]);
 
@@ -115,8 +115,12 @@ export default function CreateScreen() {
         ])
       ).start();
 
+      const apiUrl = `${process.env.EXPO_PUBLIC_TOOLKIT_URL}/images/edit/`;
+      console.log("Calling image edit API:", apiUrl);
+      console.log("Photo base64 length:", photoBase64.length);
+
       const response = await fetch(
-        "https://toolkit.rork.com/images/edit/",
+        apiUrl,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -130,12 +134,19 @@ export default function CreateScreen() {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("Generation API error:", errorText);
-        throw new Error("生成失败，请重试");
+        console.error("Generation API error:", response.status, errorText);
+        throw new Error(`生成失败 (${response.status})，请重试`);
       }
 
       const data = await response.json();
-      console.log("Generation successful, mime:", data.image?.mimeType);
+      console.log("Generation response keys:", Object.keys(data));
+      console.log("Generation successful, mime:", data.image?.mimeType, "base64 length:", data.image?.base64Data?.length);
+      
+      if (!data.image?.base64Data) {
+        console.error("No image data in response:", JSON.stringify(data).substring(0, 500));
+        throw new Error("AI 未返回图片数据，请重试");
+      }
+      
       return data;
     },
     onSuccess: (data) => {
@@ -152,6 +163,8 @@ export default function CreateScreen() {
         constraintMap[c.id] = c.enabled;
       });
 
+      console.log("Adding project with generated photo length:", data.image.base64Data.length);
+
       addProject({
         id: projectId,
         title: `${selectedStyle.name}改造方案`,
@@ -166,13 +179,15 @@ export default function CreateScreen() {
       });
 
       if (Platform.OS !== "web") {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
 
-      router.push({
-        pathname: "/result",
-        params: { projectId },
-      });
+      setTimeout(() => {
+        router.push({
+          pathname: "/result",
+          params: { projectId },
+        });
+      }, 100);
     },
     onError: (error) => {
       progressAnim.stopAnimation();
@@ -204,7 +219,7 @@ export default function CreateScreen() {
     }
 
     if (Platform.OS !== "web") {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
 
     Animated.sequence([
@@ -272,7 +287,7 @@ export default function CreateScreen() {
                 onPress={() => {
                   setActiveCategoryId(cat.id);
                   if (Platform.OS !== "web") {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   }
                 }}
               >
