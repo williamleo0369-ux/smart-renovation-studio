@@ -99,6 +99,12 @@ export default function CreateScreen() {
 
       const prompt = buildRenovationPrompt(selectedStyle, constraints, isPro);
       console.log("Generation prompt:", prompt);
+      console.log("Photo base64 length:", photoBase64.length, "(~" + (photoBase64.length / 1024).toFixed(0) + "KB)");
+
+      if (photoBase64.length < 100) {
+        console.error("Photo base64 too short, likely invalid:", photoBase64.substring(0, 50));
+        throw new Error("照片数据无效，请重新上传照片");
+      }
 
       Animated.loop(
         Animated.sequence([
@@ -117,20 +123,38 @@ export default function CreateScreen() {
 
       const apiUrl = `${process.env.EXPO_PUBLIC_TOOLKIT_URL}/images/edit/`;
       console.log("Calling image edit API:", apiUrl);
-      console.log("Photo base64 length:", photoBase64.length);
 
-      const response = await fetch(
-        apiUrl,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            prompt,
-            images: [{ type: "image", image: photoBase64 }],
-            aspectRatio: "16:9",
-          }),
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 120000);
+
+      let response: Response;
+      try {
+        const bodyPayload = JSON.stringify({
+          prompt,
+          images: [{ type: "image", image: photoBase64 }],
+          aspectRatio: "16:9",
+        });
+        console.log("Request body size:", (bodyPayload.length / 1024).toFixed(0), "KB");
+
+        response = await fetch(
+          apiUrl,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: bodyPayload,
+            signal: controller.signal,
+          }
+        );
+      } catch (fetchError: unknown) {
+        clearTimeout(timeoutId);
+        const errMsg = fetchError instanceof Error ? fetchError.message : String(fetchError);
+        console.error("Fetch failed:", errMsg);
+        if (errMsg.includes("abort")) {
+          throw new Error("生成超时，请稍后重试。建议使用更小的照片。");
         }
-      );
+        throw new Error(`网络请求失败: ${errMsg}`);
+      }
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         const errorText = await response.text();

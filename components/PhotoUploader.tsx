@@ -6,9 +6,11 @@ import {
   Pressable,
   Animated,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
+import * as ImageManipulator from "expo-image-manipulator";
 import { Camera, ImagePlus, X } from "lucide-react-native";
 import Colors from "@/constants/colors";
 
@@ -24,25 +26,53 @@ function PhotoUploaderComponent({
   onPhotoClear,
 }: PhotoUploaderProps) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
+  const [compressing, setCompressing] = React.useState(false);
+
+  const compressImage = useCallback(async (uri: string): Promise<{ uri: string; base64: string }> => {
+    try {
+      console.log("Compressing image from:", uri);
+      const manipulated = await ImageManipulator.manipulateAsync(
+        uri,
+        [{ resize: { width: 1024 } }],
+        { compress: 0.6, format: ImageManipulator.SaveFormat.JPEG, base64: true }
+      );
+      console.log("Compressed image base64 length:", manipulated.base64?.length ?? 0);
+      return { uri: manipulated.uri, base64: manipulated.base64 ?? "" };
+    } catch (error) {
+      console.error("Image compression failed, falling back to original:", error);
+      return { uri, base64: "" };
+    }
+  }, []);
 
   const pickImage = useCallback(async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
-        quality: 0.8,
-        base64: true,
+        quality: 0.7,
+        base64: false,
       });
 
       if (!result.canceled && result.assets[0]) {
         const asset = result.assets[0];
-        console.log("Image picked:", asset.uri);
-        onPhotoSelected(asset.uri, asset.base64 ?? "");
+        console.log("Image picked:", asset.uri, "width:", asset.width, "height:", asset.height);
+        setCompressing(true);
+        try {
+          const compressed = await compressImage(asset.uri);
+          if (compressed.base64) {
+            onPhotoSelected(compressed.uri, compressed.base64);
+          } else {
+            console.error("Failed to get base64 from compressed image");
+          }
+        } finally {
+          setCompressing(false);
+        }
       }
     } catch (error) {
       console.error("Error picking image:", error);
+      setCompressing(false);
     }
-  }, [onPhotoSelected]);
+  }, [onPhotoSelected, compressImage]);
 
   const takePhoto = useCallback(async () => {
     try {
@@ -54,19 +84,30 @@ function PhotoUploaderComponent({
 
       const result = await ImagePicker.launchCameraAsync({
         allowsEditing: true,
-        quality: 0.8,
-        base64: true,
+        quality: 0.7,
+        base64: false,
       });
 
       if (!result.canceled && result.assets[0]) {
         const asset = result.assets[0];
-        console.log("Photo taken:", asset.uri);
-        onPhotoSelected(asset.uri, asset.base64 ?? "");
+        console.log("Photo taken:", asset.uri, "width:", asset.width, "height:", asset.height);
+        setCompressing(true);
+        try {
+          const compressed = await compressImage(asset.uri);
+          if (compressed.base64) {
+            onPhotoSelected(compressed.uri, compressed.base64);
+          } else {
+            console.error("Failed to get base64 from compressed image");
+          }
+        } finally {
+          setCompressing(false);
+        }
       }
     } catch (error) {
       console.error("Error taking photo:", error);
+      setCompressing(false);
     }
-  }, [onPhotoSelected]);
+  }, [onPhotoSelected, compressImage]);
 
   const handlePressIn = useCallback(() => {
     Animated.spring(scaleAnim, {
@@ -82,6 +123,15 @@ function PhotoUploaderComponent({
       useNativeDriver: true,
     }).start();
   }, [scaleAnim]);
+
+  if (compressing) {
+    return (
+      <View style={[styles.uploadArea, styles.compressingArea]}>
+        <ActivityIndicator size="small" color={Colors.accent} />
+        <Text style={styles.compressingText}>正在优化图片...</Text>
+      </View>
+    );
+  }
 
   if (photo) {
     return (
@@ -219,5 +269,14 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 12,
     fontWeight: "500" as const,
+  },
+  compressingArea: {
+    borderStyle: "solid" as const,
+    flexDirection: "row" as const,
+    gap: 10,
+  },
+  compressingText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
   },
 });
