@@ -16,6 +16,7 @@ import {
   Clock,
   ChevronRight,
   Layers,
+  CircleUserRound,
 } from "lucide-react-native";
 import Colors from "@/constants/colors";
 import { RENOVATION_STYLES, STYLE_CATEGORIES } from "@/constants/styles";
@@ -60,6 +61,9 @@ export default function HomeScreen() {
               </Text>
             </View>
             <View style={styles.headerRight}>
+              <Pressable style={styles.accountButton} onPress={() => router.push('/account')} accessibilityLabel="账户">
+                <CircleUserRound size={21} color={Colors.accent} />
+              </Pressable>
               <View style={styles.statBadge}>
                 <Layers size={14} color={Colors.accent} />
                 <Text style={styles.statText}>
@@ -263,6 +267,14 @@ const styles = StyleSheet.create({
   headerRight: {
     alignItems: "flex-end",
     gap: 6,
+  },
+  accountButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Colors.surface,
   },
   proBadge: {
     flexDirection: "row",

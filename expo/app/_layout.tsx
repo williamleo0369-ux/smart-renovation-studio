@@ -4,6 +4,7 @@ import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { ProjectsProvider } from "@/hooks/useProjects";
+import { AuthProvider } from "@/hooks/useAuth";
 import Colors from "@/constants/colors";
 
 SplashScreen.preventAutoHideAsync();
@@ -20,6 +21,8 @@ function RootLayoutNav() {
       }}
     >
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="login" options={{ headerShown: false }} />
+      <Stack.Screen name="account" options={{ title: "账户" }} />
       <Stack.Screen
         name="result"
         options={{
@@ -40,9 +43,11 @@ export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <GestureHandlerRootView>
-        <ProjectsProvider>
-          <RootLayoutNav />
-        </ProjectsProvider>
+        <AuthProvider>
+          <ProjectsProvider>
+            <RootLayoutNav />
+          </ProjectsProvider>
+        </AuthProvider>
       </GestureHandlerRootView>
     </QueryClientProvider>
   );
