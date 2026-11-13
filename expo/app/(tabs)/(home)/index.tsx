@@ -21,11 +21,13 @@ import {
 import Colors from "@/constants/colors";
 import { RENOVATION_STYLES, STYLE_CATEGORIES } from "@/constants/styles";
 import { useProjects } from "@/hooks/useProjects";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { recentProjects, completedProjects } = useProjects();
+  const { user, isReady } = useAuth();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
 
@@ -54,15 +56,16 @@ export default function HomeScreen() {
           style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
         >
           <View style={styles.header}>
-            <View>
+            <View style={styles.headerCopy}>
               <Text style={styles.greeting}>空间焕新</Text>
               <Text style={styles.subtitle}>
                 上传空间照片，生成改造灵感
               </Text>
             </View>
             <View style={styles.headerRight}>
-              <Pressable style={styles.accountButton} onPress={() => router.push('/account')} accessibilityLabel="账户">
-                <CircleUserRound size={21} color={Colors.accent} />
+              <Pressable style={styles.accountButton} onPress={() => router.push('/account')} accessibilityRole="button" accessibilityLabel={user ? "打开我的账户" : "登录或注册"}>
+                <CircleUserRound size={23} color="#fff" />
+                <Text style={styles.accountButtonText}>{!isReady ? "账户" : user ? "我的账户" : "登录 / 注册"}</Text>
               </Pressable>
               <View style={styles.statBadge}>
                 <Layers size={14} color={Colors.accent} />
@@ -238,6 +241,10 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 20,
   },
+  headerCopy: {
+    flex: 1,
+    paddingRight: 12,
+  },
   greeting: {
     fontSize: 28,
     fontWeight: "800" as const,
@@ -269,12 +276,24 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   accountButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
+    minHeight: 46,
+    paddingHorizontal: 14,
+    borderRadius: 16,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: Colors.surface,
+    gap: 7,
+    backgroundColor: Colors.accent,
+    shadowColor: Colors.accent,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.22,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  accountButtonText: {
+    fontSize: 13,
+    fontWeight: "700" as const,
+    color: "#fff",
   },
   proBadge: {
     flexDirection: "row",
