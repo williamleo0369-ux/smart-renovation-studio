@@ -2,7 +2,9 @@ export type UserRole = 'designer' | 'homeowner';
 
 export interface User {
   id: string;
-  phone: string;
+  provider: 'apple';
+  displayName: string;
+  email?: string;
   role: UserRole;
   createdAt: number;
 }

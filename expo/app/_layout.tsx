@@ -5,7 +5,6 @@ import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { ProjectsProvider } from "@/hooks/useProjects";
 import { AuthProvider } from "@/hooks/useAuth";
-import { SubscriptionProvider } from "@/hooks/useSubscription";
 import Colors from "@/constants/colors";
 
 SplashScreen.preventAutoHideAsync();
@@ -22,6 +21,8 @@ function RootLayoutNav() {
       }}
     >
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="login" options={{ headerShown: false }} />
+      <Stack.Screen name="account" options={{ title: "账户" }} />
       <Stack.Screen
         name="result"
         options={{
@@ -29,13 +30,7 @@ function RootLayoutNav() {
           presentation: "card",
         }}
       />
-      <Stack.Screen
-        name="subscription"
-        options={{
-          headerShown: false,
-          presentation: "modal",
-        }}
-      />
+      <Stack.Screen name="legal" options={{ title: "隐私与支持" }} />
     </Stack>
   );
 }
@@ -49,11 +44,9 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <GestureHandlerRootView>
         <AuthProvider>
-          <SubscriptionProvider>
-            <ProjectsProvider>
-              <RootLayoutNav />
-            </ProjectsProvider>
-          </SubscriptionProvider>
+          <ProjectsProvider>
+            <RootLayoutNav />
+          </ProjectsProvider>
         </AuthProvider>
       </GestureHandlerRootView>
     </QueryClientProvider>

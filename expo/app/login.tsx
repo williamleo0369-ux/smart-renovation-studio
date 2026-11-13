@@ -1,751 +1,86 @@
-import React, { useState, useRef, useCallback, useEffect } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  Pressable,
-  Animated,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  Alert,
-  Dimensions,
-} from "react-native";
-import { StatusBar } from "expo-status-bar";
-import { LinearGradient } from "expo-linear-gradient";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import * as Haptics from "expo-haptics";
-import {
-  Phone,
-  ShieldCheck,
-  Sparkles,
-  User,
-  Paintbrush,
-  Check,
-  ChevronRight,
-} from "lucide-react-native";
+import React, { useState } from "react";
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
+import * as AppleAuthentication from "expo-apple-authentication";
+import * as Haptics from "expo-haptics";
+import { useRouter } from "expo-router";
+import { BadgeCheck, Check, Database, Paintbrush, ShieldCheck, Sparkles, User, WalletCards } from "lucide-react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/hooks/useAuth";
 import { UserRole } from "@/types";
-import { useRouter } from "expo-router";
-
-const { height: SCREEN_HEIGHT } = Dimensions.get("window");
-const HERO_HEIGHT = SCREEN_HEIGHT * 0.38;
-
-const PHONE_REGEX = /^1[3-9]\d{9}$/;
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { login } = useAuth();
+  const { signInWithApple } = useAuth();
+  const [role, setRole] = useState<UserRole>("homeowner");
+  const [agreed, setAgreed] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const [phone, setPhone] = useState<string>("");
-  const [code, setCode] = useState<string>("");
-  const [selectedRole, setSelectedRole] = useState<UserRole>("homeowner");
-  const [agreedToTerms, setAgreedToTerms] = useState<boolean>(false);
-  const [countdown, setCountdown] = useState<number>(0);
-  const [codeSent, setCodeSent] = useState<boolean>(false);
-  const [isLoggingIn, setIsLoggingIn] = useState<boolean>(false);
-
-  const phoneInputRef = useRef<TextInput>(null);
-  const codeInputRef = useRef<TextInput>(null);
-  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(40)).current;
-  const buttonScale = useRef(new Animated.Value(1)).current;
-  const heroOpacity = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(heroOpacity, {
-        toValue: 1,
-        duration: 800,
-        useNativeDriver: true,
-      }),
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 600,
-        delay: 300,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 600,
-        delay: 300,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [heroOpacity, fadeAnim, slideAnim]);
-
-  useEffect(() => {
-    return () => {
-      if (countdownRef.current) clearInterval(countdownRef.current);
-    };
-  }, []);
-
-  const startCountdown = useCallback(() => {
-    setCountdown(60);
-    if (countdownRef.current) clearInterval(countdownRef.current);
-    countdownRef.current = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          if (countdownRef.current) clearInterval(countdownRef.current);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-  }, []);
-
-  const handleSendCode = useCallback(() => {
-    if (!PHONE_REGEX.test(phone)) {
-      Alert.alert("提示", "请输入正确的11位手机号码");
-      return;
+  const handleAppleLogin = async () => {
+    if (!agreed) return Alert.alert("请先确认", "请阅读并同意用户协议与隐私政策。 ");
+    try {
+      setLoading(true);
+      await signInWithApple(role);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      router.replace("/(tabs)/(home)");
+    } catch (error) {
+      if ((error as { code?: string }).code !== "ERR_REQUEST_CANCELED") {
+        Alert.alert("登录未完成", "Apple 登录暂时无法完成，请稍后再试。");
+      }
+    } finally {
+      setLoading(false);
     }
-    if (Platform.OS !== "web") {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-    setCodeSent(true);
-    startCountdown();
-    console.log("Verification code sent to:", phone);
-    Alert.alert("验证码已发送", "模拟验证码：1234");
-    codeInputRef.current?.focus();
-  }, [phone, startCountdown]);
-
-  const handleLogin = useCallback(async () => {
-    if (!PHONE_REGEX.test(phone)) {
-      Alert.alert("提示", "请输入正确的手机号码");
-      return;
-    }
-    if (code.length !== 4) {
-      Alert.alert("提示", "请输入4位验证码");
-      return;
-    }
-    if (!agreedToTerms) {
-      Alert.alert("提示", "请先阅读并同意用户协议与隐私政策");
-      return;
-    }
-    if (code !== "1234") {
-      Alert.alert("验证码错误", "请输入正确的验证码（模拟：1234）");
-      return;
-    }
-
-    if (Platform.OS !== "web") {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    }
-
-    setIsLoggingIn(true);
-
-    Animated.sequence([
-      Animated.timing(buttonScale, {
-        toValue: 0.96,
-        duration: 100,
-        useNativeDriver: true,
-      }),
-      Animated.timing(buttonScale, {
-        toValue: 1,
-        duration: 100,
-        useNativeDriver: true,
-      }),
-    ]).start();
-
-    await new Promise((resolve) => setTimeout(resolve, 800));
-
-    login(phone, selectedRole);
-    console.log("Login successful:", phone, selectedRole);
-    router.replace("/(tabs)/(home)");
-  }, [phone, code, agreedToTerms, selectedRole, login, router, buttonScale]);
-
-  const handleButtonPressIn = useCallback(() => {
-    Animated.timing(buttonScale, {
-      toValue: 0.96,
-      duration: 120,
-      useNativeDriver: true,
-    }).start();
-  }, [buttonScale]);
-
-  const handleButtonPressOut = useCallback(() => {
-    Animated.timing(buttonScale, {
-      toValue: 1,
-      duration: 120,
-      useNativeDriver: true,
-    }).start();
-  }, [buttonScale]);
-
-  const isLoginEnabled =
-    PHONE_REGEX.test(phone) && code.length === 4 && agreedToTerms && !isLoggingIn;
+  };
 
   return (
-    <View style={styles.container}>
-      <StatusBar style="light" />
-
-      <Animated.View style={[styles.heroSection, { opacity: heroOpacity }]}>
-        <Image
-          source={{
-            uri: "https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=800&q=80",
-          }}
-          style={styles.heroImage}
-          contentFit="cover"
-        />
-        <LinearGradient
-          colors={["transparent", "rgba(28,28,30,0.3)", "rgba(250,250,247,0.95)", Colors.background]}
-          locations={[0, 0.4, 0.75, 1]}
-          style={styles.heroGradient}
-        />
-        <View style={[styles.heroContent, { paddingTop: insets.top + 16 }]}>
-          <View style={styles.logoRow}>
-            <View style={styles.logoIcon}>
-              <Sparkles size={20} color="#FFFFFF" />
-            </View>
-            <Text style={styles.logoText}>空间焕新</Text>
-          </View>
-          <Text style={styles.heroTagline}>AI 智能空间焕新</Text>
-          <Text style={styles.heroSubtitle}>一键生成专业改造效果图</Text>
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: insets.bottom + 28 }} bounces={false}>
+      <View style={styles.hero}>
+        <Image source={{ uri: "https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=1000&q=85" }} style={StyleSheet.absoluteFill} contentFit="cover" />
+        <LinearGradient colors={["rgba(0,0,0,0.18)", "rgba(28,28,30,0.5)"]} style={StyleSheet.absoluteFill} />
+        <View style={[styles.heroContent, { paddingTop: insets.top + 24 }]}>
+          <View style={styles.logo}><Sparkles size={20} color="#fff" /><Text style={styles.logoText}>空间焕新</Text></View>
+          <Text style={styles.heroTitle}>让每个空间，都值得期待</Text>
+          <Text style={styles.heroSubtitle}>上传空间照片，生成专属改造灵感</Text>
         </View>
-      </Animated.View>
-
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.formWrapper}
-        keyboardVerticalOffset={0}
-      >
-        <ScrollView
-          contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 24 }]}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          bounces={false}
-        >
-          <Animated.View
-            style={[
-              styles.formCard,
-              {
-                opacity: fadeAnim,
-                transform: [{ translateY: slideAnim }],
-              },
-            ]}
-          >
-            <Text style={styles.formTitle}>登录 / 注册</Text>
-            <Text style={styles.formSubtitle}>
-              首次登录将自动创建账户
-            </Text>
-
-            <View style={styles.inputGroup}>
-              <View style={styles.inputWrapper}>
-                <View style={styles.inputIconBox}>
-                  <Phone size={18} color={Colors.accent} />
-                </View>
-                <Text style={styles.inputPrefix}>+86</Text>
-                <View style={styles.inputDivider} />
-                <TextInput
-                  ref={phoneInputRef}
-                  style={styles.textInput}
-                  placeholder="请输入手机号"
-                  placeholderTextColor={Colors.textTertiary}
-                  keyboardType="phone-pad"
-                  maxLength={11}
-                  value={phone}
-                  onChangeText={setPhone}
-                  testID="phone-input"
-                />
-              </View>
-
-              <View style={styles.inputWrapper}>
-                <View style={styles.inputIconBox}>
-                  <ShieldCheck size={18} color={Colors.accent} />
-                </View>
-                <TextInput
-                  ref={codeInputRef}
-                  style={[styles.textInput, styles.codeInput]}
-                  placeholder="请输入验证码"
-                  placeholderTextColor={Colors.textTertiary}
-                  keyboardType="number-pad"
-                  maxLength={4}
-                  value={code}
-                  onChangeText={setCode}
-                  testID="code-input"
-                />
-                <Pressable
-                  style={[
-                    styles.sendCodeButton,
-                    (countdown > 0 || !PHONE_REGEX.test(phone)) &&
-                      styles.sendCodeButtonDisabled,
-                  ]}
-                  onPress={handleSendCode}
-                  disabled={countdown > 0 || !PHONE_REGEX.test(phone)}
-                  testID="send-code-button"
-                >
-                  <Text
-                    style={[
-                      styles.sendCodeText,
-                      (countdown > 0 || !PHONE_REGEX.test(phone)) &&
-                        styles.sendCodeTextDisabled,
-                    ]}
-                  >
-                    {countdown > 0
-                      ? `${countdown}s`
-                      : codeSent
-                        ? "重新获取"
-                        : "获取验证码"}
-                  </Text>
-                </Pressable>
-              </View>
-            </View>
-
-            <View style={styles.roleSection}>
-              <Text style={styles.roleLabel}>选择身份</Text>
-              <View style={styles.roleRow}>
-                <Pressable
-                  style={[
-                    styles.roleCard,
-                    selectedRole === "designer" && styles.roleCardActive,
-                  ]}
-                  onPress={() => {
-                    setSelectedRole("designer");
-                    if (Platform.OS !== "web") {
-                      Haptics.selectionAsync();
-                    }
-                  }}
-                  testID="role-designer"
-                >
-                  <Paintbrush
-                    size={20}
-                    color={selectedRole === "designer" ? Colors.accent : Colors.textTertiary}
-                  />
-                  <Text
-                    style={[
-                      styles.roleText,
-                      selectedRole === "designer" && styles.roleTextActive,
-                    ]}
-                  >
-                    设计师
-                  </Text>
-                  {selectedRole === "designer" && (
-                    <View style={styles.roleCheck}>
-                      <Check size={12} color="#FFFFFF" />
-                    </View>
-                  )}
-                </Pressable>
-                <Pressable
-                  style={[
-                    styles.roleCard,
-                    selectedRole === "homeowner" && styles.roleCardActive,
-                  ]}
-                  onPress={() => {
-                    setSelectedRole("homeowner");
-                    if (Platform.OS !== "web") {
-                      Haptics.selectionAsync();
-                    }
-                  }}
-                  testID="role-homeowner"
-                >
-                  <User
-                    size={20}
-                    color={selectedRole === "homeowner" ? Colors.accent : Colors.textTertiary}
-                  />
-                  <Text
-                    style={[
-                      styles.roleText,
-                      selectedRole === "homeowner" && styles.roleTextActive,
-                    ]}
-                  >
-                    业主
-                  </Text>
-                  {selectedRole === "homeowner" && (
-                    <View style={styles.roleCheck}>
-                      <Check size={12} color="#FFFFFF" />
-                    </View>
-                  )}
-                </Pressable>
-              </View>
-            </View>
-
-            <Pressable
-              style={styles.termsRow}
-              onPress={() => {
-                setAgreedToTerms((v) => !v);
-                if (Platform.OS !== "web") {
-                  Haptics.selectionAsync();
-                }
-              }}
-              testID="terms-checkbox"
-            >
-              <View
-                style={[
-                  styles.checkbox,
-                  agreedToTerms && styles.checkboxChecked,
-                ]}
-              >
-                {agreedToTerms && <Check size={12} color="#FFFFFF" />}
-              </View>
-              <Text style={styles.termsText}>
-                我已阅读并同意
-                <Text style={styles.termsLink}>《用户协议》</Text>
-                与
-                <Text style={styles.termsLink}>《隐私政策》</Text>
-              </Text>
-            </Pressable>
-
-            <Animated.View style={{ transform: [{ scale: buttonScale }] }}>
-              <Pressable
-                style={[
-                  styles.loginButton,
-                  !isLoginEnabled && styles.loginButtonDisabled,
-                ]}
-                onPress={handleLogin}
-                onPressIn={handleButtonPressIn}
-                onPressOut={handleButtonPressOut}
-                disabled={!isLoginEnabled}
-                testID="login-button"
-              >
-                {isLoggingIn ? (
-                  <Text style={styles.loginButtonText}>登录中...</Text>
-                ) : (
-                  <>
-                    <Text style={styles.loginButtonText}>登录</Text>
-                    <ChevronRight size={18} color="#FFFFFF" />
-                  </>
-                )}
-              </Pressable>
-            </Animated.View>
-
-            <View style={styles.thirdPartySection}>
-              <View style={styles.dividerRow}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>其他登录方式</Text>
-                <View style={styles.dividerLine} />
-              </View>
-              <View style={styles.thirdPartyRow}>
-                <Pressable style={styles.thirdPartyButton}>
-                  <View style={[styles.thirdPartyIcon, { backgroundColor: "#07C160" }]}>
-                    <Text style={styles.thirdPartyIconText}>微</Text>
-                  </View>
-                  <Text style={styles.thirdPartyLabel}>微信</Text>
-                </Pressable>
-                <Pressable style={styles.thirdPartyButton}>
-                  <View style={[styles.thirdPartyIcon, { backgroundColor: "#1C1C1E" }]}>
-                    <Text style={styles.thirdPartyIconText}>A</Text>
-                  </View>
-                  <Text style={styles.thirdPartyLabel}>Apple</Text>
-                </Pressable>
-              </View>
-            </View>
-          </Animated.View>
-
-          <Text style={styles.disclaimer}>
-            本应用使用 AI 生成效果图仅供设计参考，不作为施工依据
-          </Text>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </View>
+      </View>
+      <View style={styles.card}>
+        <Text style={styles.title}>登录 / 注册</Text>
+        <Text style={styles.subtitle}>使用 Apple ID 安全登录，不会获取您的 Apple 密码</Text>
+        <Text style={styles.label}>您的身份</Text>
+        <View style={styles.roles}>
+          {([['homeowner', '业主', User], ['designer', '设计师', Paintbrush]] as const).map(([value, label, Icon]) => {
+            const active = role === value;
+            return <Pressable key={value} style={[styles.role, active && styles.roleActive]} onPress={() => setRole(value)}><Icon size={20} color={active ? Colors.accent : Colors.textTertiary} /><Text style={[styles.roleText, active && styles.roleTextActive]}>{label}</Text>{active && <View style={styles.check}><Check size={11} color="#fff" /></View>}</Pressable>;
+          })}
+        </View>
+        <Pressable style={styles.terms} onPress={() => setAgreed(!agreed)}>
+          <View style={[styles.checkbox, agreed && styles.checkboxActive]}>{agreed && <Check size={12} color="#fff" />}</View>
+          <Text style={styles.termsText}>我已阅读并同意 <Text style={styles.link} onPress={() => router.push('/legal')}>《用户协议与隐私政策》</Text></Text>
+        </Pressable>
+        {Platform.OS === "ios" ? <AppleAuthentication.AppleAuthenticationButton buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN} buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK} cornerRadius={12} style={[styles.appleButton, (!agreed || loading) && styles.disabled]} onPress={handleAppleLogin} /> : null}
+        {loading && <Text style={styles.loading}>正在安全登录…</Text>}
+        <Pressable style={styles.skip} onPress={() => router.replace('/(tabs)/(home)')}><Text style={styles.skipText}>暂不登录，先体验</Text></Pressable>
+        <Text style={styles.note}>登录用于保存您的身份偏好；改造方案仍只保存在当前设备。</Text>
+      </View>
+      <View style={styles.infoSection}>
+        <Text style={styles.infoHeading}>登录与服务说明</Text>
+        <InfoCard icon={BadgeCheck} title="登录后可获得" body="保存业主或设计师身份偏好，随时查看账户状态。当前版本的改造方案仍仅保存在本机，暂不提供跨设备云同步。" />
+        <InfoCard icon={WalletCards} title="费用与订阅" body="当前版本不提供付费订阅，也不会自动续费或扣款。图片生成、风格浏览和本机方案记录均无需购买订阅。未来如推出付费服务，会在购买前明确展示价格、周期和取消方式，并由您主动确认。" />
+        <InfoCard icon={ShieldCheck} title="使用规则" body="请仅上传您有权使用的空间照片，不要上传身份证件、联系方式等敏感信息。AI 效果图仅供设计灵感参考，不构成施工图、工程安全意见、材料承诺或正式报价。" />
+        <InfoCard icon={Database} title="数据说明" body="使用 Apple 登录时，仅处理 Apple 提供的用户标识及您主动授权的姓名或邮箱。照片只会在您发起生成时发送给图片处理服务；详情可查看用户协议与隐私政策。" />
+        <Pressable style={styles.legalButton} onPress={() => router.push('/legal')}><ShieldCheck size={17} color={Colors.accent} /><Text style={styles.legalButtonText}>查看完整规则、隐私政策与支持方式</Text></Pressable>
+      </View>
+    </ScrollView>
   );
 }
 
+function InfoCard({ icon: Icon, title, body }: { icon: typeof ShieldCheck; title: string; body: string }) {
+  return <View style={styles.infoCard}><View style={styles.infoIcon}><Icon size={19} color={Colors.accent} /></View><View style={styles.infoCopy}><Text style={styles.infoTitle}>{title}</Text><Text style={styles.infoBody}>{body}</Text></View></View>;
+}
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  heroSection: {
-    height: HERO_HEIGHT,
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 0,
-  },
-  heroImage: {
-    width: "100%",
-    height: "100%",
-  },
-  heroGradient: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: "70%",
-  },
-  heroContent: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 24,
-  },
-  logoRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginBottom: 12,
-  },
-  logoIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: Colors.accent,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  logoText: {
-    fontSize: 20,
-    fontWeight: "700" as const,
-    color: "#FFFFFF",
-    letterSpacing: 1,
-    textShadowColor: "rgba(0,0,0,0.3)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
-  },
-  heroTagline: {
-    fontSize: 28,
-    fontWeight: "800" as const,
-    color: "#FFFFFF",
-    letterSpacing: 0.5,
-    textShadowColor: "rgba(0,0,0,0.4)",
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 8,
-  },
-  heroSubtitle: {
-    fontSize: 15,
-    color: "rgba(255,255,255,0.85)",
-    marginTop: 6,
-    textShadowColor: "rgba(0,0,0,0.3)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
-  },
-  formWrapper: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingTop: HERO_HEIGHT - 40,
-    paddingHorizontal: 20,
-  },
-  formCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: 24,
-    padding: 24,
-    shadowColor: "rgba(28,28,30,0.12)",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 1,
-    shadowRadius: 24,
-    elevation: 8,
-  },
-  formTitle: {
-    fontSize: 22,
-    fontWeight: "700" as const,
-    color: Colors.textPrimary,
-    letterSpacing: -0.3,
-  },
-  formSubtitle: {
-    fontSize: 13,
-    color: Colors.textTertiary,
-    marginTop: 4,
-    marginBottom: 24,
-  },
-  inputGroup: {
-    gap: 14,
-    marginBottom: 20,
-  },
-  inputWrapper: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: Colors.surfaceElevated,
-    borderRadius: 14,
-    height: 52,
-    paddingHorizontal: 14,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-  },
-  inputIconBox: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: Colors.accentMuted,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 10,
-  },
-  inputPrefix: {
-    fontSize: 15,
-    fontWeight: "600" as const,
-    color: Colors.textPrimary,
-  },
-  inputDivider: {
-    width: 1,
-    height: 20,
-    backgroundColor: Colors.border,
-    marginHorizontal: 10,
-  },
-  textInput: {
-    flex: 1,
-    fontSize: 15,
-    color: Colors.textPrimary,
-    height: "100%",
-  },
-  codeInput: {
-    marginRight: 8,
-  },
-  sendCodeButton: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 10,
-    backgroundColor: Colors.accentMuted,
-  },
-  sendCodeButtonDisabled: {
-    backgroundColor: Colors.surfaceElevated,
-  },
-  sendCodeText: {
-    fontSize: 13,
-    fontWeight: "600" as const,
-    color: Colors.accent,
-  },
-  sendCodeTextDisabled: {
-    color: Colors.textTertiary,
-  },
-  roleSection: {
-    marginBottom: 18,
-  },
-  roleLabel: {
-    fontSize: 13,
-    fontWeight: "600" as const,
-    color: Colors.textSecondary,
-    marginBottom: 10,
-  },
-  roleRow: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  roleCard: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 14,
-    borderRadius: 14,
-    backgroundColor: Colors.surfaceElevated,
-    borderWidth: 1.5,
-    borderColor: Colors.borderLight,
-  },
-  roleCardActive: {
-    borderColor: Colors.accent,
-    backgroundColor: Colors.accentMuted,
-  },
-  roleText: {
-    fontSize: 14,
-    fontWeight: "600" as const,
-    color: Colors.textTertiary,
-  },
-  roleTextActive: {
-    color: Colors.accent,
-  },
-  roleCheck: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: Colors.accent,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  termsRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 10,
-    marginBottom: 20,
-  },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 6,
-    borderWidth: 1.5,
-    borderColor: Colors.border,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 1,
-  },
-  checkboxChecked: {
-    backgroundColor: Colors.accent,
-    borderColor: Colors.accent,
-  },
-  termsText: {
-    flex: 1,
-    fontSize: 12,
-    color: Colors.textSecondary,
-    lineHeight: 18,
-  },
-  termsLink: {
-    color: Colors.accent,
-    fontWeight: "500" as const,
-  },
-  loginButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    height: 52,
-    borderRadius: 14,
-    backgroundColor: Colors.accent,
-  },
-  loginButtonDisabled: {
-    backgroundColor: Colors.accentLight,
-    opacity: 0.6,
-  },
-  loginButtonText: {
-    fontSize: 16,
-    fontWeight: "700" as const,
-    color: "#FFFFFF",
-    letterSpacing: 0.5,
-  },
-  thirdPartySection: {
-    marginTop: 24,
-  },
-  dividerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    marginBottom: 18,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: Colors.borderLight,
-  },
-  dividerText: {
-    fontSize: 12,
-    color: Colors.textTertiary,
-  },
-  thirdPartyRow: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 40,
-  },
-  thirdPartyButton: {
-    alignItems: "center",
-    gap: 6,
-  },
-  thirdPartyIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  thirdPartyIconText: {
-    fontSize: 16,
-    fontWeight: "700" as const,
-    color: "#FFFFFF",
-  },
-  thirdPartyLabel: {
-    fontSize: 11,
-    color: Colors.textTertiary,
-  },
-  disclaimer: {
-    textAlign: "center",
-    fontSize: 11,
-    color: Colors.textTertiary,
-    marginTop: 20,
-    lineHeight: 16,
-    paddingHorizontal: 20,
-  },
+  container:{flex:1,backgroundColor:Colors.background},hero:{height:320,overflow:'hidden'},heroContent:{flex:1,paddingHorizontal:24,justifyContent:'flex-end',paddingBottom:48},logo:{flexDirection:'row',alignItems:'center',gap:9,marginBottom:18},logoText:{color:'#fff',fontSize:20,fontWeight:'800'},heroTitle:{color:'#fff',fontSize:28,fontWeight:'800',lineHeight:36},heroSubtitle:{color:'rgba(255,255,255,.86)',fontSize:15,marginTop:8},card:{marginTop:-24,marginHorizontal:18,padding:24,borderRadius:24,backgroundColor:Colors.surface,shadowColor:'#000',shadowOpacity:.1,shadowRadius:20,shadowOffset:{width:0,height:8}},title:{fontSize:23,fontWeight:'800',color:Colors.textPrimary},subtitle:{fontSize:13,lineHeight:20,color:Colors.textSecondary,marginTop:6,marginBottom:22},label:{fontSize:13,fontWeight:'600',color:Colors.textSecondary,marginBottom:10},roles:{flexDirection:'row',gap:12},role:{flex:1,height:56,borderRadius:14,borderWidth:1,borderColor:Colors.borderLight,backgroundColor:Colors.surfaceElevated,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8},roleActive:{borderColor:Colors.accent,backgroundColor:Colors.accentMuted},roleText:{fontSize:15,fontWeight:'600',color:Colors.textSecondary},roleTextActive:{color:Colors.accent},check:{width:18,height:18,borderRadius:9,alignItems:'center',justifyContent:'center',backgroundColor:Colors.accent},terms:{flexDirection:'row',alignItems:'center',marginVertical:20},checkbox:{width:20,height:20,borderRadius:6,borderWidth:1,borderColor:Colors.border,alignItems:'center',justifyContent:'center',marginRight:9},checkboxActive:{borderColor:Colors.accent,backgroundColor:Colors.accent},termsText:{flex:1,fontSize:12,color:Colors.textSecondary},link:{color:Colors.accent,fontWeight:'600'},appleButton:{height:52,width:'100%'},disabled:{opacity:.45},loading:{textAlign:'center',marginTop:10,fontSize:13,color:Colors.textSecondary},skip:{alignItems:'center',paddingVertical:15},skipText:{fontSize:14,fontWeight:'600',color:Colors.accent},note:{fontSize:11,lineHeight:17,textAlign:'center',color:Colors.textTertiary},infoSection:{marginHorizontal:18,marginTop:26,gap:12},infoHeading:{fontSize:19,fontWeight:'800',color:Colors.textPrimary,marginBottom:2},infoCard:{padding:17,borderRadius:16,backgroundColor:Colors.surface,flexDirection:'row',alignItems:'flex-start',gap:12},infoIcon:{width:38,height:38,borderRadius:12,backgroundColor:Colors.accentMuted,alignItems:'center',justifyContent:'center'},infoCopy:{flex:1},infoTitle:{fontSize:15,fontWeight:'700',color:Colors.textPrimary,marginBottom:5},infoBody:{fontSize:13,lineHeight:20,color:Colors.textSecondary},legalButton:{minHeight:50,borderRadius:14,borderWidth:1,borderColor:Colors.border,backgroundColor:Colors.surface,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,paddingHorizontal:14},legalButtonText:{fontSize:13,fontWeight:'700',color:Colors.accent,textAlign:'center'},
 });
