@@ -17,7 +17,7 @@
       "supportsTablet": false,
       "appleTeamId": "QUCZ5655D9",
       "bundleIdentifier": "app.rork.smart-renovation-studio",
-      "buildNumber": "4",
+      "buildNumber": "5",
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "用于选择您主动上传的空间照片并生成改造创意参考图。",
         "NSCameraUsageDescription": "用于拍摄您希望进行改造设计的空间照片。"
