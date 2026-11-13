@@ -33,8 +33,8 @@ function PhotoUploaderComponent({
       console.log("Compressing image from:", uri);
       const manipulated = await ImageManipulator.manipulateAsync(
         uri,
-        [{ resize: { width: 1024 } }],
-        { compress: 0.6, format: ImageManipulator.SaveFormat.JPEG, base64: true }
+        [{ resize: { width: 512 } }],
+        { compress: 0.72, format: ImageManipulator.SaveFormat.JPEG, base64: true }
       );
       console.log("Compressed image base64 length:", manipulated.base64?.length ?? 0);
       return { uri: manipulated.uri, base64: manipulated.base64 ?? "" };

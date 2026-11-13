@@ -16,21 +16,15 @@ import {
   Clock,
   ChevronRight,
   Layers,
-  Crown,
 } from "lucide-react-native";
 import Colors from "@/constants/colors";
 import { RENOVATION_STYLES, STYLE_CATEGORIES } from "@/constants/styles";
 import { useProjects } from "@/hooks/useProjects";
-import { useAuth } from "@/hooks/useAuth";
-import { useSubscription } from "@/hooks/useSubscription";
-import { isStylePremium } from "@/constants/subscription";
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { recentProjects, completedProjects } = useProjects();
-  const { user } = useAuth();
-  const { isPro } = useSubscription();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
 
@@ -62,16 +56,10 @@ export default function HomeScreen() {
             <View>
               <Text style={styles.greeting}>空间焕新</Text>
               <Text style={styles.subtitle}>
-                {user ? (user.role === "designer" ? "设计师" : "业主") : ""} · {user?.phone?.replace(/(\d{3})\d{4}(\d{4})/, "$1****$2") ?? ""}
+                上传空间照片，生成改造灵感
               </Text>
             </View>
             <View style={styles.headerRight}>
-              {isPro && (
-                <Pressable style={styles.proBadge} onPress={() => router.push("/subscription")}>
-                  <Crown size={12} color="#D4A76A" />
-                  <Text style={styles.proBadgeText}>PRO</Text>
-                </Pressable>
-              )}
               <View style={styles.statBadge}>
                 <Layers size={14} color={Colors.accent} />
                 <Text style={styles.statText}>
@@ -92,7 +80,7 @@ export default function HomeScreen() {
                 </View>
                 <Text style={styles.heroTitle}>开始新的空间改造</Text>
                 <Text style={styles.heroSubtitle}>
-                  上传房屋照片，AI 为您生成专业级改造效果图
+                  上传房屋照片，AI 为您生成空间改造创意参考图
                 </Text>
                 <View style={styles.heroButton}>
                   <Plus size={18} color={Colors.accent} />
@@ -129,12 +117,6 @@ export default function HomeScreen() {
                       <Text style={styles.styleChipName}>{style.name}</Text>
                       <Text style={styles.styleChipEn}>{style.nameEn}</Text>
                     </View>
-                    {isStylePremium(style.id) && !isPro && (
-                      <View style={styles.premiumTag}>
-                        <Crown size={9} color="#D4A76A" />
-                        <Text style={styles.premiumTagText}>PRO</Text>
-                      </View>
-                    )}
                   </Pressable>
                 ))}
               </ScrollView>

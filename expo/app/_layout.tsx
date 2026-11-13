@@ -4,8 +4,6 @@ import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { ProjectsProvider } from "@/hooks/useProjects";
-import { AuthProvider } from "@/hooks/useAuth";
-import { SubscriptionProvider } from "@/hooks/useSubscription";
 import Colors from "@/constants/colors";
 
 SplashScreen.preventAutoHideAsync();
@@ -29,13 +27,7 @@ function RootLayoutNav() {
           presentation: "card",
         }}
       />
-      <Stack.Screen
-        name="subscription"
-        options={{
-          headerShown: false,
-          presentation: "modal",
-        }}
-      />
+      <Stack.Screen name="legal" options={{ title: "隐私与支持" }} />
     </Stack>
   );
 }
@@ -48,13 +40,9 @@ export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <GestureHandlerRootView>
-        <AuthProvider>
-          <SubscriptionProvider>
-            <ProjectsProvider>
-              <RootLayoutNav />
-            </ProjectsProvider>
-          </SubscriptionProvider>
-        </AuthProvider>
+        <ProjectsProvider>
+          <RootLayoutNav />
+        </ProjectsProvider>
       </GestureHandlerRootView>
     </QueryClientProvider>
   );
