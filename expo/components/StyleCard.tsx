@@ -19,6 +19,7 @@ interface StyleCardProps {
 
 function StyleCardComponent({ style, selected, onSelect }: StyleCardProps) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
+  const [imageFailed, setImageFailed] = React.useState(false);
 
   const handlePressIn = useCallback(() => {
     Animated.spring(scaleAnim, {
@@ -44,12 +45,11 @@ function StyleCardComponent({ style, selected, onSelect }: StyleCardProps) {
         style={[styles.card, selected && styles.cardSelected]}
       >
         <View style={styles.imageContainer}>
-          <Image
-            source={{ uri: style.image }}
-            style={styles.image}
-            contentFit="cover"
-            transition={300}
-          />
+          {imageFailed ? (
+            <View style={styles.imageFallback}><Text style={styles.imageFallbackText}>{style.name}</Text></View>
+          ) : (
+            <Image source={{ uri: style.image }} style={styles.image} contentFit="cover" transition={300} onError={() => setImageFailed(true)} />
+          )}
           {selected && (
             <View style={styles.checkBadge}>
               <Check size={14} color="#fff" strokeWidth={3} />
@@ -102,6 +102,8 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
   },
+  imageFallback: { width: "100%", height: "100%", alignItems: "center", justifyContent: "center", backgroundColor: Colors.accentMuted },
+  imageFallbackText: { fontSize: 16, fontWeight: "700", color: Colors.accent },
   checkBadge: {
     position: "absolute",
     top: 8,

@@ -17,7 +17,6 @@ import {
   ChevronDown,
   ChevronUp,
   Wand2,
-  Crown,
 } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
@@ -29,13 +28,11 @@ import { PhotoUploader } from "@/components/PhotoUploader";
 import { StyleCard } from "@/components/StyleCard";
 import { ConstraintToggle } from "@/components/ConstraintToggle";
 import { useProjects } from "@/hooks/useProjects";
-import { useSubscription } from "@/hooks/useSubscription";
 
 export default function CreateScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { addProject } = useProjects();
-  const { isPro, canGenerate, remainingGenerations, canAccessStyle, recordGeneration } = useSubscription();
 
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [photoBase64, setPhotoBase64] = useState<string>("");
@@ -65,25 +62,11 @@ export default function CreateScreen() {
   }, []);
 
   const handleStyleSelect = useCallback((id: string) => {
-    if (!canAccessStyle(id)) {
-      if (Platform.OS !== "web") {
-        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-      }
-      Alert.alert(
-        "专业版风格",
-        "该风格为专业版专属，开通后即可使用全量 12 大进阶风格。",
-        [
-          { text: "稍后再说", style: "cancel" },
-          { text: "查看订阅", onPress: () => router.push("/subscription") },
-        ]
-      );
-      return;
-    }
     setSelectedStyleId(id);
     if (Platform.OS !== "web") {
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-  }, [canAccessStyle, router]);
+  }, []);
 
   const handleConstraintToggle = useCallback((id: string) => {
     setConstraints((prev) =>
@@ -97,7 +80,7 @@ export default function CreateScreen() {
         throw new Error("请先上传照片并选择风格");
       }
 
-      const prompt = buildRenovationPrompt(selectedStyle, constraints, isPro);
+      const prompt = buildRenovationPrompt(selectedStyle, constraints, false);
       console.log("Generation prompt:", prompt);
       console.log("Photo base64 length:", photoBase64.length, "(~" + (photoBase64.length / 1024).toFixed(0) + "KB)");
 
@@ -121,7 +104,11 @@ export default function CreateScreen() {
         ])
       ).start();
 
-      const apiUrl = `${process.env.EXPO_PUBLIC_TOOLKIT_URL}/images/edit/`;
+      const serviceUrl = process.env.EXPO_PUBLIC_TOOLKIT_URL?.trim();
+      if (!serviceUrl || serviceUrl.includes("your-api.example.com")) {
+        throw new Error("生成服务暂不可用，请稍后再试");
+      }
+      const apiUrl = `${serviceUrl.replace(/\/$/, "")}/images/edit/`;
       console.log("Calling image edit API:", apiUrl);
 
       const controller = new AbortController();
@@ -230,18 +217,6 @@ export default function CreateScreen() {
       Alert.alert("提示", "照片加载中，请稍后重试");
       return;
     }
-    if (!canGenerate) {
-      Alert.alert(
-        "今日额度已用完",
-        "免费版每日仅可生成 1 次。升级专业版享无限生成。",
-        [
-          { text: "知道了", style: "cancel" },
-          { text: "升级专业版", onPress: () => router.push("/subscription") },
-        ]
-      );
-      return;
-    }
-
     if (Platform.OS !== "web") {
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
@@ -259,10 +234,9 @@ export default function CreateScreen() {
       }),
     ]).start();
 
-    recordGeneration();
     generateMutation.mutate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [photoUri, photoBase64, buttonScale, canGenerate, router, recordGeneration]);
+  }, [photoUri, photoBase64, buttonScale, generateMutation]);
 
   const progressWidth = progressAnim.interpolate({
     inputRange: [0, 1],
@@ -347,7 +321,6 @@ export default function CreateScreen() {
                   contentContainerStyle={styles.stylesScroll}
                 >
                   {cat.styles.map((style) => {
-                    const locked = !canAccessStyle(style.id);
                     return (
                       <View key={style.id} style={{ position: "relative" as const }}>
                         <StyleCard
@@ -355,14 +328,6 @@ export default function CreateScreen() {
                           selected={style.id === selectedStyleId}
                           onSelect={handleStyleSelect}
                         />
-                        {locked && (
-                          <View style={styles.lockedOverlay}>
-                            <View style={styles.lockedBadge}>
-                              <Crown size={10} color="#D4A76A" />
-                              <Text style={styles.lockedText}>PRO</Text>
-                            </View>
-                          </View>
-                        )}
                       </View>
                     );
                   })}
@@ -423,28 +388,6 @@ export default function CreateScreen() {
             <Text style={styles.progressText}>
               AI 正在为您生成改造效果图，请稍候...
             </Text>
-          </View>
-        )}
-
-        {!isPro && (
-          <Pressable
-            style={styles.upgradeBar}
-            onPress={() => router.push("/subscription")}
-          >
-            <Crown size={16} color="#D4A76A" />
-            <Text style={styles.upgradeBarText}>
-              {canGenerate
-                ? `今日剩余 ${remainingGenerations} 次生成`
-                : "今日额度已用完"}
-            </Text>
-            <Text style={styles.upgradeBarLink}>升级专业版 →</Text>
-          </Pressable>
-        )}
-
-        {isPro && (
-          <View style={styles.proBadgeBar}>
-            <Crown size={14} color="#D4A76A" />
-            <Text style={styles.proBadgeBarText}>专业版 · 超清渲染 · 无限生成</Text>
           </View>
         )}
 

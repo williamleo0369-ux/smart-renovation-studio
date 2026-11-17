@@ -6,21 +6,10 @@ import { Project } from "@/types";
 
 const STORAGE_KEY = "renovation_projects_meta";
 const IMAGE_KEY_PREFIX = "renovation_img_";
-const MAX_IMAGE_SIZE = 2_000_000;
 
 interface ProjectMeta extends Omit<Project, 'originalPhoto' | 'generatedPhoto'> {
   originalPhotoKey: string;
   generatedPhotoKey?: string;
-}
-
-function isBase64DataUri(data: string): boolean {
-  return data.startsWith('data:') || data.length > 1000;
-}
-
-function compressBase64(data: string): string {
-  if (data.length <= MAX_IMAGE_SIZE) return data;
-  console.log(`Image large (${(data.length / 1024).toFixed(0)}KB), truncating for storage`);
-  return data.substring(0, MAX_IMAGE_SIZE);
 }
 
 async function clearOldImages(keepKeys: string[]): Promise<void> {
@@ -40,10 +29,9 @@ async function clearOldImages(keepKeys: string[]): Promise<void> {
 
 async function saveImage(key: string, data: string): Promise<boolean> {
   if (!data) return false;
-  const compressed = isBase64DataUri(data) ? compressBase64(data) : data;
-  if (!compressed) return false;
+  if (!data) return false;
   try {
-    await AsyncStorage.setItem(IMAGE_KEY_PREFIX + key, compressed);
+    await AsyncStorage.setItem(IMAGE_KEY_PREFIX + key, data);
     return true;
   } catch (_error) {
     console.warn("Storage quota hit for image:", key, "- keeping in memory only", _error);

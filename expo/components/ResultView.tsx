@@ -3,16 +3,11 @@ import {
   View,
   Text,
   StyleSheet,
-  Pressable,
   Animated,
-  Alert,
   ScrollView,
 } from "react-native";
 import { Image } from "expo-image";
 import {
-  Download,
-  CalendarCheck,
-  ArrowRight,
   TrendingUp,
   Info,
 } from "lucide-react-native";
@@ -54,14 +49,6 @@ function ResultViewComponent({
       }),
     ]).start();
   }, [fadeAnim, slideAnim]);
-
-  const handleBooking = () => {
-    Alert.alert(
-      "预约成功",
-      "我们的设计顾问将在24小时内与您联系，为您安排免费上门量房设计服务。",
-      [{ text: "好的" }]
-    );
-  };
 
   return (
     <ScrollView
@@ -123,21 +110,10 @@ function ResultViewComponent({
           </View>
         </View>
 
-        <Pressable style={styles.ctaButton} onPress={handleBooking}>
-          <CalendarCheck size={20} color="#fff" />
-          <Text style={styles.ctaText}>预约免费上门设计</Text>
-          <ArrowRight size={18} color="#fff" />
-        </Pressable>
-
-        <Pressable
-          style={styles.secondaryButton}
-          onPress={() =>
-            Alert.alert("提示", "效果图已保存到方案库")
-          }
-        >
-          <Download size={18} color={Colors.accent} />
-          <Text style={styles.secondaryText}>保存到方案库</Text>
-        </Pressable>
+        <View style={styles.savedNotice}>
+          <Text style={styles.savedNoticeTitle}>方案已保存在本机</Text>
+          <Text style={styles.savedNoticeText}>可在「方案库」中再次查看或删除。</Text>
+        </View>
 
         <View style={styles.disclaimer}>
           <Info size={14} color={Colors.textTertiary} />
@@ -162,6 +138,22 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   content: {},
+  savedNotice: {
+    backgroundColor: Colors.surface,
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 20,
+  },
+  savedNoticeTitle: {
+    fontSize: 15,
+    fontWeight: "700" as const,
+    color: Colors.textPrimary,
+  },
+  savedNoticeText: {
+    marginTop: 4,
+    fontSize: 13,
+    color: Colors.textSecondary,
+  },
   comparisonContainer: {
     gap: 12,
     marginBottom: 20,

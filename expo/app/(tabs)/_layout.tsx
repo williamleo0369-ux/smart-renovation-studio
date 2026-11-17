@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { Home, PlusCircle, User } from "lucide-react-native";
+import { Home, PlusCircle, FolderOpen } from "lucide-react-native";
 import React from "react";
 import Colors from "@/constants/colors";
 
@@ -40,9 +40,9 @@ export default function TabLayout() {
       <Tabs.Screen
         name="history"
         options={{
-          title: "我的",
+          title: "方案库",
           tabBarIcon: ({ color, size }) => (
-            <User size={size} color={color} />
+            <FolderOpen size={size} color={color} />
           ),
         }}
       />

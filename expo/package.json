@@ -6,7 +6,9 @@
     "start": "bunx rork start -p t7xmu50b60zseljoplx9l --tunnel",
     "start-web": "bunx rork start -p t7xmu50b60zseljoplx9l --web --tunnel",
     "start-web-dev": "DEBUG=expo* bunx rork start -p t7xmu50b60zseljoplx9l --web --tunnel",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "android": "expo run:android",
+    "ios": "expo run:ios"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
@@ -17,12 +19,13 @@
     "@tanstack/react-query": "^5.83.0",
     "@ungap/structured-clone": "^1.3.0",
     "expo": "~54.0.27",
+    "expo-apple-authentication": "~8.0.8",
     "expo-blur": "~15.0.8",
     "expo-constants": "~18.0.11",
     "expo-font": "~14.0.10",
     "expo-haptics": "~15.0.8",
     "expo-image": "~3.0.11",
-    "expo-image-manipulator": "^55.0.10",
+    "expo-image-manipulator": "~14.0.8",
     "expo-image-picker": "~17.0.9",
     "expo-linear-gradient": "~15.0.8",
     "expo-linking": "~8.0.10",
